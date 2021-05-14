@@ -4,6 +4,8 @@
 // adrian.clark@canterbury.ac.nz
 // -------------------------------
 // First Release Nov 2020
+// Updated March 2020
+// - fixed bug preventing MacOS/Windows cross platform compatibility
 
 using System.Collections;
 using System.Collections.Generic;
@@ -294,7 +296,7 @@ public class ExportProjectToUnityPackage : MonoBehaviour
         assetPathAssets.Add("Packages/manifest.json");
 
         // Get the name of the file to save our project to.
-        string filename = EditorUtility.SaveFilePanel("Select where you would like your Exported Project archive saved", "", "MyUnityProject.unitypakckage", "unitypackage");
+        string filename = EditorUtility.SaveFilePanel("Select where you would like your Exported Project archive saved", "", "MyUnityProject.unitypackage", "unitypackage");
 
         // If the filename exists, save the file, then open the explorer
         if (filename.Length > 0)
@@ -344,7 +346,7 @@ public class ExportProjectToUnityPackage : MonoBehaviour
                     // Read the files data, then create the TAR entry for the
                     // file and add the file out too
                     byte[] assetData = File.ReadAllBytes(file);
-                    TarFileMetaData assetMD = TarFileMetaData.CreateDefaultFileMetaData(Path.Combine(assetGUID, "asset"), assetData.Length, currentTime, userName, userGroup);
+                    TarFileMetaData assetMD = TarFileMetaData.CreateDefaultFileMetaData(assetGUID + "/asset", assetData.Length, currentTime, userName, userGroup);
                     byte[] bAssetMD = assetMD.ToByteArray(true);
                     gzip.Write(bAssetMD, 0, bAssetMD.Length);
                     gzip.Write(assetData, 0, assetData.Length);
@@ -363,7 +365,7 @@ public class ExportProjectToUnityPackage : MonoBehaviour
                     {
                         long currentTimeMeta = new DateTimeOffset(File.GetLastWriteTime(file + ".meta")).ToUnixTimeSeconds();
                         byte[] assetMetaData = File.ReadAllBytes(file + ".meta");
-                        TarFileMetaData assetMetaMD = TarFileMetaData.CreateDefaultFileMetaData(Path.Combine(assetGUID, "asset.meta"), assetMetaData.Length, currentTimeMeta, userName, userGroup);
+                        TarFileMetaData assetMetaMD = TarFileMetaData.CreateDefaultFileMetaData(assetGUID + "/asset.meta", assetMetaData.Length, currentTimeMeta, userName, userGroup);
                         byte[] bAssetMetaMD = assetMetaMD.ToByteArray(true);
                         gzip.Write(bAssetMetaMD, 0, bAssetMetaMD.Length);
                         gzip.Write(assetMetaData, 0, assetMetaData.Length);
@@ -380,7 +382,7 @@ public class ExportProjectToUnityPackage : MonoBehaviour
                     // Create a TAR entry for a "pathname" file, which contains
                     // The assets original path in the project
                     byte[] pathName = Encoding.ASCII.GetBytes(file);
-                    TarFileMetaData pathNameMD = TarFileMetaData.CreateDefaultFileMetaData(Path.Combine(assetGUID, "pathname"), pathName.Length, currentTime, userName, userGroup);
+                    TarFileMetaData pathNameMD = TarFileMetaData.CreateDefaultFileMetaData(assetGUID + "/pathname", pathName.Length, currentTime, userName, userGroup);
                     byte[] bPathNameMD = pathNameMD.ToByteArray(true);
                     gzip.Write(bPathNameMD, 0, bPathNameMD.Length);
                     gzip.Write(pathName, 0, pathName.Length);
@@ -394,6 +396,11 @@ public class ExportProjectToUnityPackage : MonoBehaviour
                     }
 
                 }
+
+                // "The end of an archive is marked by at least 
+                // two consecutive zero-filled records"
+                bPaddingBytes = new byte[1024];
+                gzip.Write(bPaddingBytes, 0, 1024);
 
                 //Flush and close after we've written all the files
                 gzip.Flush();
